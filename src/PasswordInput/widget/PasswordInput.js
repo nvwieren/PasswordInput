@@ -35,15 +35,12 @@ define([
     "dojo/on",
     "dojo/_base/event",
 
-    "PasswordInput/lib/jquery-1.11.2",
-    "PasswordInput/lib/tooltip",
     "PasswordInput/lib/validationLanguagePack",
     "dojo/text!PasswordInput/widget/template/PasswordInput.html"
-], function(declare, _WidgetBase, _TemplatedMixin, dom, dojoDom, dojoProp, dojoGeometry, dojoClass, dojoStyle, dojoConstruct, dojoAttr, dojoArray, dojoLang, dojoText, dojoHtml, dojoOn, dojoEvent, _jQuery, tooltip, validationTranslations, widgetTemplate) {
+], function(declare, _WidgetBase, _TemplatedMixin, dom, dojoDom, dojoProp, dojoGeometry, dojoClass, dojoStyle, dojoConstruct, dojoAttr, dojoArray, dojoLang, dojoText, dojoHtml, dojoOn, dojoEvent, validationTranslations, widgetTemplate) {
     "use strict";
 
-    var _jQ = _jQuery.noConflict(true);
-	var j$ = tooltip.createInstance(_jQ);
+    var _jQ = jQuery;
 
     return declare("PasswordInput.widget.PasswordInput", [ _WidgetBase, _TemplatedMixin ], {
         templateString: widgetTemplate,
@@ -155,13 +152,16 @@ define([
             
             this.ruleNodes = {};
             
+            this.validationContent = dojoConstruct.create("div", { class: "small" });
+            var listNode = dojoConstruct.create("ul", { class: "list-unstyled pwi-validation-container" }, this.validationContent);
+            
             for (var rule in this.passwordRules) {
                 if (this.passwordRules.hasOwnProperty(rule)) {
-                    var listNode = dojoConstruct.create("li", {}, this.validationNodes);
+                    var listItemNode = dojoConstruct.create("li", null, listNode);
                     var glyphNode = dojoConstruct.create("span", {
                         "class": "glyphicon glyphicon-remove text-danger",
                         "aria-hidden" : "true"
-                    }, listNode);
+                    }, listItemNode);
                     dojoConstruct.place(document.createTextNode(" " + this._getTranslatedMessage(rule, this.passwordRules[rule].value)), glyphNode, "after");
 
                     this.ruleNodes[rule] = {
@@ -170,6 +170,14 @@ define([
                     }
                 }
             }
+            
+            _jQ(this.passwordInputNode).popover({
+                html: true,
+                title: "Password rules:",
+                trigger: "focus",
+                content: this.validationContent
+            });
+            
         },
         
         _setupEvents: function() {
