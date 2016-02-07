@@ -45,9 +45,8 @@ define([
     return declare("PasswordInput.widget.PasswordInput", [ _WidgetBase, _TemplatedMixin ], {
         templateString: widgetTemplate,
 
-        validated: "",
-
-        mfToExecute: "",
+        validated: null,
+        mfToExecute: null,
 
         // Internal variables
         _handles: null,
@@ -59,6 +58,8 @@ define([
             logger.debug(this.id + ".constructor");
             this._handles = [];
             this.translations = validationTranslations[dojo.locale];
+            
+            
         },
 
         postCreate: function() {
@@ -90,7 +91,6 @@ define([
             dojoOn(this.changePWButton, "click", dojoLang.hitch(this, function(e) {this._changePassword(e)}));
             
             this._setupValidationFeedback();
-            this._setupEvents();
             
             this._validateInput();
         },
@@ -178,12 +178,7 @@ define([
                 content: this.validationContent
             });
             
-        },
-        
-        _setupEvents: function() {
-            this.connect(this.changePWButton, "click", this._changePassword);
-            
-        },
+        },        
         
         _validateInput: function() {
             logger.debug(this.id + "._validateInut");
@@ -225,7 +220,24 @@ define([
         _changePassword: function(event) {
             event.preventDefault();
             if (this._validateConfirmInput()) {
-                this._contextObj.set(this.passwordAttribute, this.passwordInputNode.value);
+                mx.data.create({
+                    entity: "TestSuite.HashObject",
+                    callback: dojoLang.hitch(this, function(obj) {                        
+                        obj.set("Value", this.passwordInputNode.value);
+                        mx.data.commit({
+                            mxobj: obj,
+                            callback: dojoLang.hitch(this, function() {
+                                this.passwordHash = obj.get("HashValue");
+                            })
+                        });
+                    }),
+                    error: function(e) {
+                        console.log("an error occured: " + e);
+                    }
+                });
+                
+                
+                this._contextObj.set(this.passwordAttr, this.passwordInputNode.value);
                 if (this.mfToExecute !== "") {
                     mx.data.action({
                         params: {
