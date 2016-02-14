@@ -1,4 +1,4 @@
-/*global logger*/
+/* global dojo, mx, logger */
 /*
     PasswordInput
     ========================
@@ -30,17 +30,21 @@ define([
     "dojo/dom-attr",
     "dojo/_base/array",
     "dojo/_base/lang",
+    "dojo/query",
     "dojo/text",
     "dojo/html",
     "dojo/on",
     "dojo/_base/event",
 
+    "PasswordInput/lib/jquery-1.11.2",
+    "PasswordInput/lib/popover",
     "PasswordInput/lib/validationLanguagePack",
     "dojo/text!PasswordInput/widget/template/PasswordInput.html"
-], function(declare, _WidgetBase, _TemplatedMixin, dom, dojoDom, dojoProp, dojoGeometry, dojoClass, dojoStyle, dojoConstruct, dojoAttr, dojoArray, dojoLang, dojoText, dojoHtml, dojoOn, dojoEvent, validationTranslations, widgetTemplate) {
+], function(declare, _WidgetBase, _TemplatedMixin, dom, dojoDom, dojoProp, dojoGeometry, dojoClass, dojoStyle, dojoConstruct, dojoAttr, dojoArray, dojoLang, dojoQuery, dojoText, dojoHtml, dojoOn, dojoEvent, _jQuery, popover, validationTranslations, widgetTemplate) {
     "use strict";
 
-    var _jQ = jQuery;
+    var _jQ = _jQuery.noConflict(true);
+	var j$ = popover.createInstance(_jQ);
 
     return declare("PasswordInput.widget.PasswordInput", [ _WidgetBase, _TemplatedMixin ], {
         templateString: widgetTemplate,
@@ -52,14 +56,11 @@ define([
         _handles: null,
         _contextObj: null,
 
-        // dojo.declare.constructor is called to construct the widget instance. Implement to initialize non-primitive properties.
         constructor: function() {
             //logger.level(logger.DEBUG);
             logger.debug(this.id + ".constructor");
             this._handles = [];
             this.translations = validationTranslations[dojo.locale];
-            
-            
         },
 
         postCreate: function() {
@@ -69,6 +70,7 @@ define([
                 "class": "form-control pwi-password-input",
                 name: "pwi-password-confirm",
                 type: "password",
+                placeholder: this.confirmPlaceHolder,
                 autocorrect: "off",
                 autocapitalize: "none"
             }, this.pwConfirmContainer, "first");
@@ -76,6 +78,7 @@ define([
                 "class": "form-control",
                 name: "pwi-password",
                 type: "password",
+                placeholder: this.passwordPlaceHolder,
                 autocorrect: "off",
                 autocapitalize: "none"
             }, this.pwContainer, "first");
@@ -86,11 +89,23 @@ define([
             }, this.confirmValidationNode);
             dojoConstruct.place(document.createTextNode(" " + this._getTranslatedMessage("password_not_equal")), glyphNode, "after");
             
-            dojoOn(this.passwordInputNode, "keyup", dojoLang.hitch(this, this._validateInput));            
-            dojoOn(this.passwordConfirmNode, "blur", dojoLang.hitch(this, this._validateConfirmInput))
+            this.validationContent = dojoConstruct.create("div", { class: "small" });
+            
+            j$(this.passwordInputNode).popover({
+                html: true,
+                title: "Password rules:",
+                trigger: "manual",
+                content: this.validationContent
+            });
+            
+            dojoOn(this.passwordInputNode, "focus", dojoLang.hitch(this, function() { j$(this.passwordInputNode).popover('show') }));
+            dojoOn(this.passwordInputNode, "blur", dojoLang.hitch(this, function() { if (this._validateInput()) j$(this.passwordInputNode).popover('hide') }));
+            dojoOn(this.passwordInputNode, "keyup", dojoLang.hitch(this, this._validateInput));
+            dojoOn(this.passwordConfirmNode, "blur", dojoLang.hitch(this, this._validateConfirmInput));
+            dojoOn(this.passwordConfirmNode, "keyup", dojoLang.hitch(this, this._clearValidations));
             dojoOn(this.changePWButton, "click", dojoLang.hitch(this, function(e) {this._changePassword(e)}));
             
-            this._setupValidationFeedback();
+            this._setupValidation();
             
             this._validateInput();
         },
@@ -99,7 +114,8 @@ define([
             logger.debug(this.id + ".update");
 
             this._contextObj = obj;
-
+            this._resetSubscriptions();
+            
             callback();
         },
 
@@ -111,48 +127,68 @@ define([
             }
         },
         
-        _setupValidationFeedback: function() {
+        _setupValidation: function() {
+            if (this.passwordConfigEntity !== '') {
+                mx.data.createXPathString({
+                    entity: this.passwordConfigEntity,
+                    callback: dojoLang.hitch(this, function(xpath, allMatched) {
+                        mx.data.get({
+                            xpath: xpath,
+                            callback: dojoLang.hitch(this, function(objs) {
+                                this._passwordConfig = objs[0];
+                                this._setupValidationRules();
+                            })
+                        });
+                    })
+                });
+            } else {
+                this._setupValidationRules();
+            }
+        },
+        
+        _setupValidationRules: function() {
             logger.debug(this.id + "._setupValidationFeedback");
             this.passwordRules = {};
             
-            if (this.minCharacters > 0) this.passwordRules["min_chars"] = { 
+            var minChar = (this.minCharactersAttr) ? this._passwordConfig.get(this.minCharactersAttr) : this.minCharacters;            
+            this.passwordRules["min_chars"] = { 
                 name: "min_chars",
-                value: this.minCharacters,
-                regex: new RegExp("^.{" + this.minCharacters + ",}$")
+                value: minChar,
+                regex: new RegExp("^.{" + minChar + ",}$")
             };
-            if (this.requireUpper > 0) this.passwordRules["require_upper"] = { 
+            var requireUpper = (this.requireUpperAttr) ? this._passwordConfig.get(this.requireUpperAttr) : this.requireUpper;
+            if (requireUpper) this.passwordRules["require_upper"] = { 
                 name: "require_upper",
-                value: this.requireUpper, 
+                value: requireUpper, 
                 regex: /[A-Z]/ 
             };
-            if (this.requireLower > 0) this.passwordRules["require_lower"] = { 
+            var requireLower = (this.requireLowerAttr) ? this._passwordConfig.get(this.requireLowerAttr) : this.requireLower;
+            if (requireLower) this.passwordRules["require_lower"] = { 
                 name: "require_lower",
-                value: this.requireLower, 
+                value: requireLower, 
                 regex: /[a-z]/ 
             };
-            if (this.requireNumeric > 0) this.passwordRules["require_numeric"] = { 
+            var requireNumeric = (this.requireNumericAttr) ? this._passwordConfig.get(this.requireNumericAttr) : this.requireNumeric;
+            if (requireNumeric) this.passwordRules["require_numeric"] = { 
                 name: "require_numeric",
-                value: this.requireNumeric, 
+                value: requireNumeric, 
                 regex: /[0-9]/ 
             };
-            if (this.requireSpecial > 0) this.passwordRules["require_special"] = { 
+            var requireSpecial = (this.requireSpecialAttr) ? this._passwordConfig.get(this.requireSpecialAttr) : this.requireSpecial;
+            if (requireSpecial) this.passwordRules["require_special"] = { 
                 name: "require_special", 
-                value: this.requireSpecial, 
+                value: requireSpecial, 
                 regex: /[ !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]/ 
             };
+            var disallowUsername = (this.disallowUsernameAttr) ? this._passwordConfig.get(this.disallowUsernameAttr) : this.disallowUsername;
             if (this.disallowUsername) this.passwordRules["disallow_username"] = { 
                 name: "disallow_username",
-                value: this.disallowUsername,
+                value: disallowUsername,
                 regex: new RegExp("^((?!" + mx.session.getUserName() + ").)*$", "i")
             };
-            if (this.previousPasswords > 0) this.passwordRules["previous_passwords"] = { 
-                name: "previous_passwords",
-                value: this.previousPasswords 
-            };
             
-            this.ruleNodes = {};
+            this.ruleNodes = {};            
             
-            this.validationContent = dojoConstruct.create("div", { class: "small" });
             var listNode = dojoConstruct.create("ul", { class: "list-unstyled pwi-validation-container" }, this.validationContent);
             
             for (var rule in this.passwordRules) {
@@ -170,21 +206,12 @@ define([
                     }
                 }
             }
-            
-            _jQ(this.passwordInputNode).popover({
-                html: true,
-                title: "Password rules:",
-                trigger: "focus",
-                content: this.validationContent
-            });
-            
         },        
         
         _validateInput: function() {
             logger.debug(this.id + "._validateInut");
 
             if (this.passwordInputNode) {
-                //TODO rework redundant code
                 var value = this.passwordInputNode.value;
                 var validated = true;
                 
@@ -200,10 +227,11 @@ define([
                     }
                 }
                 if (validated) {
-                    dojoAttr.remove(this.changePWButton, "disabled");
+                    dojoAttr.remove(this.changePWButton, "disabled");                    
                 } else {
                     dojoAttr.set(this.changePWButton, "disabled", "disabled");
                 }
+                return validated;
             }
         },
         
@@ -219,24 +247,7 @@ define([
         
         _changePassword: function(event) {
             event.preventDefault();
-            if (this._validateConfirmInput()) {
-                mx.data.create({
-                    entity: "TestSuite.HashObject",
-                    callback: dojoLang.hitch(this, function(obj) {                        
-                        obj.set("Value", this.passwordInputNode.value);
-                        mx.data.commit({
-                            mxobj: obj,
-                            callback: dojoLang.hitch(this, function() {
-                                this.passwordHash = obj.get("HashValue");
-                            })
-                        });
-                    }),
-                    error: function(e) {
-                        console.log("an error occured: " + e);
-                    }
-                });
-                
-                
+            if (this._validateConfirmInput()) {     
                 this._contextObj.set(this.passwordAttr, this.passwordInputNode.value);
                 if (this.mfToExecute !== "") {
                     mx.data.action({
@@ -252,11 +263,11 @@ define([
                             //TODO what to do when all is ok!
                         },
                         error: dojoLang.hitch(this, function(error) {
-                            logger.error(this.id + ": An error occurred while executing microflow: " + error.description);
+                            logger.error(this.id + ": An error occurred while executing microflow: " + error.message);
                         })
                     }, this);
                 }
-            }              
+            }
             
         },
         
@@ -281,7 +292,63 @@ define([
             var message = this.translations[code];
             if (typeof message !== 'undefined')
                 return message.split('{{' + code + '}}').join(value);
-        }
+        },
+        
+        _resetSubscriptions: function () {
+            var validationHandle = null;
+
+            this._clearSubscriptions();
+
+            if (this._contextObj) {                
+                validationHandle = mx.data.subscribe({
+                    guid: this._contextObj.getGuid(),
+                    val: true,
+                    callback: dojoLang.hitch(this, this._handleValidation)
+                });
+               
+                this._handles.push(validationHandle);
+            }
+        },
+        
+        _handleValidation: function (validations) {
+            this._clearValidations();
+
+            var val = validations[0],
+                msg = val.getReasonByAttribute(this.passwordAttr);
+
+            if (this.readOnly) {
+                val.removeAttribute(this.passwordAttr);
+            } else {
+                if (msg) {
+                    this._addValidation(msg);
+                    val.removeAttribute(this.passwordAttr);
+                }
+            }
+        },
+        
+        _clearValidations: function () {
+            dojoConstruct.empty(this.validationNodes);
+        },
+
+        _addValidation: function (msg) {            
+            var listItemNode = dojoConstruct.create("li", null, this.validationNodes);
+            var glyphNode = dojoConstruct.create("span", {
+                "class": "glyphicon glyphicon-remove text-danger",
+                "aria-hidden" : "true"
+            }, listItemNode);
+            dojoConstruct.place(document.createTextNode(" " + msg), glyphNode, "after");
+
+        },
+
+        _clearSubscriptions: function () {
+            if (this._handles && this._handles.length && this._handles.length > 0) {
+                dojoArray.forEach(this._handles, dojoLang.hitch(this, function (handle) {
+                    this.unsubscribe(handle);
+                }));
+                this._handles = [];
+            }
+        },
+        
     });
 });
 
