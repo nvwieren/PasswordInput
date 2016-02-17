@@ -6,13 +6,13 @@
     @file      : PasswordInput.js
     @version   : 1.0.0
     @author    : Nick van Wieren
-    @date      : Wednesday, January 20, 2016
+    @date      : Wednesday, February 16, 2016
     @copyright : 2016 - Mansystems Nederland
     @license   : Apache 2
 
     Documentation
     ========================
-    Describe your widget here.
+    Password strength input validation with confirmation and translated messages
 */
 
 define([
@@ -21,11 +21,7 @@ define([
     "dijit/_TemplatedMixin",
 
     "mxui/dom",
-    "dojo/dom",
-    "dojo/dom-prop",
-    "dojo/dom-geometry",
     "dojo/dom-class",
-    "dojo/dom-style",
     "dojo/dom-construct",
     "dojo/dom-attr",
     "dojo/_base/array",
@@ -40,7 +36,7 @@ define([
     "PasswordInput/lib/popover",
     "PasswordInput/lib/validationLanguagePack",
     "dojo/text!PasswordInput/widget/template/PasswordInput.html"
-], function(declare, _WidgetBase, _TemplatedMixin, dom, dojoDom, dojoProp, dojoGeometry, dojoClass, dojoStyle, dojoConstruct, dojoAttr, dojoArray, dojoLang, dojoQuery, dojoText, dojoHtml, dojoOn, dojoEvent, _jQuery, popover, validationTranslations, widgetTemplate) {
+], function(declare, _WidgetBase, _TemplatedMixin, dom, dojoClass, dojoConstruct, dojoAttr, dojoArray, dojoLang, dojoQuery, dojoText, dojoHtml, dojoOn, dojoEvent, _jQuery, popover, validationTranslations, widgetTemplate) {
     "use strict";
 
     var _jQ = _jQuery.noConflict(true);
@@ -82,18 +78,15 @@ define([
                 autocorrect: "off",
                 autocapitalize: "none"
             }, this.pwContainer, "first");
-            this.confirmValidationNode = dojoConstruct.create("li", { "style" : "display: none;" }, this.validationNodes);
-            var glyphNode = dojoConstruct.create("span", {
-                "class": "glyphicon glyphicon-remove text-danger",
-                "aria-hidden" : "true"
-            }, this.confirmValidationNode);
-            dojoConstruct.place(document.createTextNode(" " + this._getTranslatedMessage("password_not_equal")), glyphNode, "after");
+            
+            dojoHtml.set(this.changePasswordButton, this.buttonLabel);
             
             this.validationContent = dojoConstruct.create("div", { class: "small" });
             
             j$(this.passwordInputNode).popover({
                 html: true,
-                title: "Password rules:",
+                container: "body",
+                title: this.popoverTitle,
                 trigger: "manual",
                 content: this.validationContent
             });
@@ -101,13 +94,11 @@ define([
             dojoOn(this.passwordInputNode, "focus", dojoLang.hitch(this, function() { j$(this.passwordInputNode).popover('show') }));
             dojoOn(this.passwordInputNode, "blur", dojoLang.hitch(this, function() { if (this._validateInput()) j$(this.passwordInputNode).popover('hide') }));
             dojoOn(this.passwordInputNode, "keyup", dojoLang.hitch(this, this._validateInput));
-            dojoOn(this.passwordConfirmNode, "blur", dojoLang.hitch(this, this._validateConfirmInput));
-            dojoOn(this.passwordConfirmNode, "keyup", dojoLang.hitch(this, this._clearValidations));
-            dojoOn(this.changePWButton, "click", dojoLang.hitch(this, function(e) {this._changePassword(e)}));
+            dojoOn(this.passwordConfirmNode, "blur", dojoLang.hitch(this, this._validateInput));
+            dojoOn(this.passwordConfirmNode, "keyup", dojoLang.hitch(this, this._validateInput));
+            dojoOn(this.changePasswordButton, "click", dojoLang.hitch(this, function(e) {this._changePassword(e)}));
             
             this._setupValidation();
-            
-            this._validateInput();
         },
 
         update: function(obj, callback) {
@@ -128,6 +119,7 @@ define([
         },
         
         _setupValidation: function() {
+            dojoAttr.set(this.changePasswordButton, "disabled", "disabled");
             if (this.passwordConfigEntity !== '') {
                 mx.data.createXPathString({
                     entity: this.passwordConfigEntity,
@@ -210,6 +202,7 @@ define([
         
         _validateInput: function() {
             logger.debug(this.id + "._validateInut");
+            this._clearValidations();
 
             if (this.passwordInputNode) {
                 var value = this.passwordInputNode.value;
@@ -226,23 +219,27 @@ define([
                         if (!node.valid) validated = false;
                     }
                 }
-                if (validated) {
-                    dojoAttr.remove(this.changePWButton, "disabled");                    
+                if (validated && this._validateConfirmInput()) {                    
+                    dojoAttr.remove(this.changePasswordButton, "disabled");
                 } else {
-                    dojoAttr.set(this.changePWButton, "disabled", "disabled");
+                    dojoAttr.set(this.changePasswordButton, "disabled", "disabled");
                 }
                 return validated;
             }
         },
         
         _validateConfirmInput: function() {
-            if (this.passwordConfirmNode.value !== '' && this.passwordInputNode.value !== this.passwordConfirmNode.value) {
-                dojoStyle.set(this.confirmValidationNode, "display", "block");
-                return false;
+            if (this.passwordConfirmNode.value !== '') {
+                if (this.passwordInputNode.value !== this.passwordConfirmNode.value) {
+                    this._addValidation(this._getTranslatedMessage("password_not_equal"));
+                    return false;
+                } else {
+                    this._clearValidations();
+                    return true;
+                }
             } else {
-                dojoStyle.set(this.confirmValidationNode, "display", "none");
-                return true;
-            }
+                return false;
+            }            
         },
         
         _changePassword: function(event) {
@@ -327,16 +324,21 @@ define([
         },
         
         _clearValidations: function () {
-            dojoConstruct.empty(this.validationNodes);
+            dojoConstruct.destroy(this._alertDiv);
+            this._alertDiv = null;
         },
 
         _addValidation: function (msg) {            
-            var listItemNode = dojoConstruct.create("li", null, this.validationNodes);
-            var glyphNode = dojoConstruct.create("span", {
-                "class": "glyphicon glyphicon-remove text-danger",
-                "aria-hidden" : "true"
-            }, listItemNode);
-            dojoConstruct.place(document.createTextNode(" " + msg), glyphNode, "after");
+            logger.debug(this.id + "._showError");
+            if (this._alertDiv != null) {
+                dojoHtml.set(this._alertDiv, msg);
+                return true;
+            }
+            this._alertDiv = dojoConstruct.create("div", {
+                "class": "alert alert-danger",
+                "innerHTML": msg
+            });
+            dojoConstruct.place(this._alertDiv, this.pwConfirmContainer);
 
         },
 

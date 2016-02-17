@@ -1,4 +1,5 @@
-test/javasource/
+test/javasource/*
+!test/javasource/testsuite/actions
 test/deployment/
 test/.classpath
 test/.project
