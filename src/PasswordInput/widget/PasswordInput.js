@@ -351,6 +351,13 @@ define([
             }
         },
         
+        uninitialize: function() {
+            logger.debug(this.id + ".uninitialize");
+            if (j$(this.passwordInputNode).popover) {
+                j$(this.passwordInputNode).popover('hide');
+            }                
+        }
+        
     });
 });
 
