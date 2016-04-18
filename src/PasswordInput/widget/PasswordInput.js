@@ -249,6 +249,8 @@ define([
                 if (this.mfToExecute !== "") {
                     mx.data.action({
                         params: {
+                            progress: "modal",
+                            progressMsg: this._getTranslatedMessage("processing"),
                             applyto: "selection",
                             actionname: this.mfToExecute,
                             guids: [ this._contextObj.getGuid() ]
@@ -256,9 +258,7 @@ define([
                         store: {
                             caller: this.mxform
                         },
-                        callback: function(obj) {
-                            //TODO what to do when all is ok!
-                        },
+                        callback: function(obj) {},
                         error: dojoLang.hitch(this, function(error) {
                             logger.error(this.id + ": An error occurred while executing microflow: " + error.message);
                         })

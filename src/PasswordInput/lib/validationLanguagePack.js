@@ -8,7 +8,8 @@ define([], function () {
             "require_special": "At least one special character",
             "disallow_username": "Username in password not allowed",
             "previous_passwords": "Cannot use the last {{previous_passwords}}",
-            "password_not_equal": "Confirmation password is not equal"
+            "password_not_equal": "Confirmation password is not equal",
+            "processing": "Saving.."
         },
         "nl-nl": {
             "min_chars": "Minimaal aantal karakters is {{min_chars}}",
@@ -18,7 +19,8 @@ define([], function () {
             "require_special": "Minimaal één speciaal teken",
             "disallow_username": "Gebruikersnaam in het wachtwoord is niet toegestaan",
             "previous_passwords": "Cannot use the last {{previous_passwords}}",
-            "password_not_equal": "Bevestigingswachtwoord is niet gelijk"
+            "password_not_equal": "Bevestigingswachtwoord is niet gelijk",
+            "processing": "Opslaan.."
         }
     };
 });
