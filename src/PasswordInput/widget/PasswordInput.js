@@ -4,11 +4,9 @@
     ========================
 
     @file      : PasswordInput.js
-    @version   : 1.0.0
+    @version   : 1.1.0
     @author    : Nick van Wieren
-    @date      : Wednesday, February 16, 2016
-    @copyright : 2016 - Mansystems Nederland
-    @license   : Apache 2
+    @date      : Wednesday, September 27, 2019
 
     Documentation
     ========================

@@ -7,7 +7,7 @@ define([], function () {
             "require_numeric": "At least one numeric character",
             "require_special": "At least one special character",
             "disallow_username": "Username in password not allowed",
-            "previous_passwords": "Cannot use the last {{previous_passwords}}",
+            "previous_passwords": "Cannot reuse the last {{previous_passwords}}",
             "password_not_equal": "Confirmation password is not equal",
             "processing": "Saving.."
         },
@@ -18,7 +18,7 @@ define([], function () {
             "require_numeric": "Minimaal één numeriek karakter",
             "require_special": "Minimaal één speciaal teken",
             "disallow_username": "Gebruikersnaam in het wachtwoord is niet toegestaan",
-            "previous_passwords": "Cannot use the last {{previous_passwords}}",
+            "previous_passwords": "Het is niet toegestaan de laatste {{previous_passwords}} wachtwoorden te hergebruiken",
             "password_not_equal": "Bevestigingswachtwoord is niet gelijk",
             "processing": "Opslaan.."
         }
