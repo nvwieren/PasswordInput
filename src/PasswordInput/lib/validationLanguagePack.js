@@ -12,11 +12,11 @@ define([], function () {
             "processing": "Saving.."
         },
         "nl-nl": {
-            "min_chars": "Minimaal aantal karakters is {{min_chars}}",
-            "require_upper": "Minimaal één hoofdletter",
-            "require_lower": "Minimaal één kleine letter",
-            "require_numeric": "Minimaal één numeriek karakter",
-            "require_special": "Minimaal één speciaal teken",
+            "min_chars": "Minimaal {{min_chars}} karakter(s)",
+            "require_upper": "Minimaal 1 hoofdletter",
+            "require_lower": "Minimaal 1 kleine letter",
+            "require_numeric": "Minimaal 1 numeriek karakter",
+            "require_special": "Minimaal 1 speciaal teken",
             "disallow_username": "Gebruikersnaam in het wachtwoord is niet toegestaan",
             "previous_passwords": "Het is niet toegestaan de laatste {{previous_passwords}} wachtwoorden te hergebruiken",
             "password_not_equal": "Bevestigingswachtwoord is niet gelijk",

@@ -49,6 +49,7 @@ define([
         // Internal variables
         _handles: null,
         _contextObj: null,
+        _setup: false,
 
         constructor: function() {
             //logger.level(logger.DEBUG);
@@ -85,18 +86,18 @@ define([
                 html: true,
                 container: "body",
                 title: this.popoverTitle,
-                trigger: "manual",
+                trigger: "focus",
                 content: this.validationContent
             });
             
-            dojoOn(this.passwordInputNode, "focus", dojoLang.hitch(this, function() { j$(this.passwordInputNode).popover('show') }));
-            dojoOn(this.passwordInputNode, "blur", dojoLang.hitch(this, function() { if (this._validateInput()) j$(this.passwordInputNode).popover('hide') }));
+            //dojoOn(this.passwordInputNode, "focus", dojoLang.hitch(this, function() { j$(this.passwordInputNode).popover("show"); }));
+            //dojoOn(this.passwordInputNode, "blur", dojoLang.hitch(this, function() { if (this._validateInput()) j$(this.passwordInputNode).popover("hide"); }));
             dojoOn(this.passwordInputNode, "keyup", dojoLang.hitch(this, this._validateInput));
             dojoOn(this.passwordConfirmNode, "blur", dojoLang.hitch(this, this._validateInput));
             dojoOn(this.passwordConfirmNode, "keyup", dojoLang.hitch(this, this._validateInput));
-            dojoOn(this.changePasswordButton, "click", dojoLang.hitch(this, function(e) {this._changePassword(e)}));
+            dojoOn(this.changePasswordButton, "click", dojoLang.hitch(this, function(e) {this._changePassword(e);}));
             
-            this._setupValidation();
+            //this._setupValidation();
         },
 
         update: function(obj, callback) {
@@ -105,6 +106,10 @@ define([
             this._contextObj = obj;
             this._resetSubscriptions();
             
+            if (!this._setup) {
+                this._setupValidation();
+            }
+
             callback();
         },
 
@@ -118,19 +123,24 @@ define([
         
         _setupValidation: function() {
             dojoAttr.set(this.changePasswordButton, "disabled", "disabled");
-            if (this.passwordConfigEntity !== '') {
-                mx.data.createXPathString({
-                    entity: this.passwordConfigEntity,
-                    callback: dojoLang.hitch(this, function(xpath, allMatched) {
-                        mx.data.get({
-                            xpath: xpath,
-                            callback: dojoLang.hitch(this, function(objs) {
-                                this._passwordConfig = objs[0];
-                                this._setupValidationRules();
-                            })
-                        });
-                    })
-                });
+            if (this.passwordConfigEntity !== "") {
+
+                if (this._contextObj) {
+                    mx.data.get({
+                        xpath: "//" + this.passwordConfigEntity + this.passwordConfigEntityConstraint.replace(/\[%CurrentObject%\]/g, this._contextObj.getGuid()),
+                        filter: {
+                            limit: 1
+                        },
+                        callback: dojoLang.hitch(this, function (objs) {
+                            this._passwordConfig = objs[0];
+                            this._setupValidationRules();
+                        }),
+                        error: dojoLang.hitch(this, function (err) {
+                            console.error(err);
+                        })
+                    });
+                }
+
             } else {
                 this._setupValidationRules();
             }
@@ -193,7 +203,7 @@ define([
                     this.ruleNodes[rule] = {
                         node: glyphNode,
                         valid: false
-                    }
+                    };
                 }
             }
         },        
@@ -210,7 +220,7 @@ define([
                     var node = this.ruleNodes[rule];
                     if (this.passwordRules[rule].regex) {
                         var regex = this.passwordRules[rule].regex;
-                        if (regex.test(value) != node.valid) {                            
+                        if (regex.test(value) !== node.valid) {                            
                             this.ruleNodes[rule].valid, node.valid = !node.valid;
                             this._toggleValidationNode(node);                            
                         }
@@ -290,18 +300,16 @@ define([
         },
         
         _resetSubscriptions: function () {
-            var validationHandle = null;
+            logger.debug(this.id + "._resetSubscriptions");
+            // Release handles on previous object, if any.
+            this.unsubscribeAll();            
 
-            this._clearSubscriptions();
-
-            if (this._contextObj) {                
-                validationHandle = mx.data.subscribe({
+            if (this._contextObj) {
+                this.subscribe({
                     guid: this._contextObj.getGuid(),
                     val: true,
                     callback: dojoLang.hitch(this, this._handleValidation)
                 });
-               
-                this._handles.push(validationHandle);
             }
         },
         
